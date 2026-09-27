@@ -18,10 +18,10 @@ public class MapScreen extends Screen {
 
     // How far from the player the map extends.
     // 1000 = 1000 blocks in every direction.
-    private static final int MAP_RADIUS = 1000;
+    private static final int MAP_RADIUS = 256;
 
     // One map pixel represents an 8x8 Minecraft block area.
-    private static final int BLOCKS_PER_PIXEL = 8;
+    private static final int BLOCKS_PER_PIXEL = 2;
 
     // Approximately 250x250 pixels.
     private static final int MAP_SIZE =
@@ -62,6 +62,18 @@ public class MapScreen extends Screen {
          * We don't generate it every frame.
          */
         generateMap();
+    }
+    @Override
+    public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
+
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_M) {
+            if (this.client != null) {
+                this.client.setScreen(null);
+            }
+            return true;
+        }
+
+        return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
     /**
@@ -269,6 +281,14 @@ public class MapScreen extends Screen {
             float delta
     ) {
 
+        context.fill(
+                0,
+                0,
+                this.width,
+                this.height,
+                0xFFFF00FF
+        );
+
         /*
          * DON'T call renderBackground().
          *
@@ -291,15 +311,8 @@ public class MapScreen extends Screen {
         /*
          * Calculate map size.
          */
-        mapWidth = Math.min(
-                MAP_SIZE,
-                this.width - 40
-        );
-
-        mapHeight = Math.min(
-                MAP_SIZE,
-                this.height - 80
-        );
+        mapWidth = this.width - 120;
+        mapHeight = this.height - 120;
 
         mapLeft =
                 (this.width - mapWidth) / 2;
@@ -415,12 +428,12 @@ public class MapScreen extends Screen {
                 0xFFFFFFFF
         );
 
-        super.render(
-                context,
-                mouseX,
-                mouseY,
-                delta
-        );
+        //super.render(
+                //context,
+                //mouseX,
+                //mouseY,
+                //delta
+        //);
     }
 
     /*
@@ -428,14 +441,12 @@ public class MapScreen extends Screen {
      */
     @Override
     public boolean shouldPause() {
-        return false;\
-    }
-
-    @Override
-    public boolean shouldBlur() {
         return false;
     }
-
+    @Override
+    public boolean shouldCloseOnEsc() {
+        return true;
+    }
 }
 
 
