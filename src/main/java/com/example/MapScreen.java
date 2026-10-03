@@ -67,6 +67,11 @@ public class MapScreen extends Screen {
         mapCenterX = playerX;
         mapCenterZ = playerZ;
 
+        CreditsManager.setCredits(
+                this.client.player.getUuid(),
+                1234.56
+        );
+
         /*
          * Generate the map ONCE.
          *
@@ -312,6 +317,39 @@ public class MapScreen extends Screen {
             playerX = this.client.player.getBlockX();
             playerZ = this.client.player.getBlockZ();
         }
+        int bounty =
+                BountyManager.getBounty(
+                        this.client.player.getUuid()
+                );
+
+
+        double credits =
+                CreditsManager.getCredits(
+                        this.client.player.getUuid()
+                );
+
+        context.drawCenteredTextWithShadow(
+                this.textRenderer,
+                Text.literal(
+                        "Bounty: CR " + bounty
+                ),
+                this.width / 2,
+                this.height - 70,
+                0xf4fa3c
+
+        );
+        context.drawCenteredTextWithShadow(
+                this.textRenderer,
+                Text.literal(
+                        String.format(
+                                "Credits: CR %.2f",
+                                credits
+                        )
+                ),
+                this.width / 2,
+                this.height - 58,
+                0x00FF00
+        );
 
 
 
@@ -453,7 +491,7 @@ public class MapScreen extends Screen {
                                 + " block radius"
                 ),
                 this.width / 2,
-                this.height - 20,
+                this.height - 40,
                 0xFFFFFF
         );
 
