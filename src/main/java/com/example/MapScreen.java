@@ -3,12 +3,11 @@ package com.example;
 import net.minecraft.client.gui.DrawContext;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.Blocks;
-import net.minecraft.client.gui.DrawContext;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.text.Text;
 import net.minecraft.util.math.BlockPos;
-import net.minecraft.util.math.ChunkPos;
+
 
 public class MapScreen extends Screen {
 
@@ -21,7 +20,7 @@ public class MapScreen extends Screen {
     private static final int MAP_RADIUS = 256;
 
     // One map pixel represents an 8x8 Minecraft block area.
-    private static final int BLOCKS_PER_PIXEL = 2;
+    private static final int BLOCKS_PER_PIXEL = 4;
 
     // Approximately 250x250 pixels.
     private static final int MAP_SIZE =
@@ -41,6 +40,15 @@ public class MapScreen extends Screen {
     private int mapWidth;
     private int mapHeight;
 
+    private double mapCenterX;
+    private double mapCenterZ;
+
+    private boolean dragging = false;
+    private double lastMouseX;
+    private double lastMouseY;
+
+    private double zoom = 1.0;
+
     public MapScreen() {
         super(Text.literal("World Map"));
     }
@@ -55,6 +63,9 @@ public class MapScreen extends Screen {
 
         playerX = this.client.player.getBlockX();
         playerZ = this.client.player.getBlockZ();
+
+        mapCenterX = playerX;
+        mapCenterZ = playerZ;
 
         /*
          * Generate the map ONCE.
@@ -72,7 +83,15 @@ public class MapScreen extends Screen {
             }
             return true;
         }
+        if (keyCode == org.lwjgl.glfw.GLFW.GLFW_KEY_R) {
 
+            mapCenterX = playerX;
+            mapCenterZ = playerZ;
+
+            generateMap();
+
+            return true;
+        }
         return super.keyPressed(keyCode, scanCode, modifiers);
     }
 
@@ -91,18 +110,27 @@ public class MapScreen extends Screen {
             return;
         }
 
-        int startX = playerX - MAP_RADIUS;
-        int startZ = playerZ - MAP_RADIUS;
+        int visibleRadius =
+                (int)(MAP_RADIUS / zoom);
+
+        int startX =
+                (int)(mapCenterX - visibleRadius);
+
+        int startZ =
+                (int)(mapCenterZ - visibleRadius);
 
         for (int pixelX = 0; pixelX < MAP_SIZE; pixelX++) {
 
             for (int pixelZ = 0; pixelZ < MAP_SIZE; pixelZ++) {
 
+                double blocksPerPixel =
+                        (visibleRadius * 2.0) / MAP_SIZE;
+
                 int worldX =
-                        startX + pixelX * BLOCKS_PER_PIXEL;
+                        (int)(startX + pixelX * blocksPerPixel);
 
                 int worldZ =
-                        startZ + pixelZ * BLOCKS_PER_PIXEL;
+                        (int)(startZ + pixelZ * blocksPerPixel);
 
                 mapColors[pixelX][pixelZ] =
                         getAverageColor(
@@ -280,14 +308,12 @@ public class MapScreen extends Screen {
             int mouseY,
             float delta
     ) {
+        if (this.client != null && this.client.player != null) {
+            playerX = this.client.player.getBlockX();
+            playerZ = this.client.player.getBlockZ();
+        }
 
-        context.fill(
-                0,
-                0,
-                this.width,
-                this.height,
-                0xFFFF00FF
-        );
+
 
         /*
          * DON'T call renderBackground().
@@ -296,13 +322,6 @@ public class MapScreen extends Screen {
          */
 
         // Just use a solid dark background.
-        context.fill(
-                0,
-                0,
-                this.width,
-                this.height,
-                0xFF101010
-        );
 
         if (mapColors == null) {
             return;
@@ -367,11 +386,30 @@ public class MapScreen extends Screen {
         /*
          * Player marker.
          */
+        double visibleRadius =
+                MAP_RADIUS / zoom;
+
+        double blocksToPixelsX =
+                mapWidth / (visibleRadius * 2.0);
+
+        double blocksToPixelsZ =
+                mapHeight / (visibleRadius * 2.0);
+
         int centerX =
-                mapLeft + mapWidth / 2;
+                (int)(
+                        mapLeft
+                                + mapWidth / 2.0
+                                + (playerX - mapCenterX)
+                                * blocksToPixelsX
+                );
 
         int centerY =
-                mapTop + mapHeight / 2;
+                (int)(
+                        mapTop
+                                + mapHeight / 2.0
+                                + (playerZ - mapCenterZ)
+                                * blocksToPixelsZ
+                );
 
         // White outline
         context.fill(
@@ -410,7 +448,9 @@ public class MapScreen extends Screen {
                 Text.literal(
                         "X: " + playerX
                                 + "   Z: " + playerZ
-                                + "   |   1000 block radius"
+                                + "   |   "
+                                + MAP_RADIUS
+                                + " block radius"
                 ),
                 this.width / 2,
                 this.height - 20,
@@ -423,7 +463,7 @@ public class MapScreen extends Screen {
         context.drawCenteredTextWithShadow(
                 this.textRenderer,
                 Text.literal("N"),
-                centerX,
+                mapLeft + mapWidth / 2  ,
                 mapTop + 5,
                 0xFFFFFFFF
         );
@@ -439,6 +479,103 @@ public class MapScreen extends Screen {
     /*
      * Don't pause singleplayer when the map is open.
      */
+    @Override
+    public boolean mouseScrolled(
+            double mouseX,
+            double mouseY,
+            double horizontalAmount,
+            double verticalAmount
+    ) {
+
+        if (verticalAmount > 0) {
+            zoom *= 1.2;
+        }
+
+        if (verticalAmount < 0) {
+            zoom /= 1.2;
+        }
+
+        zoom = Math.max(0.25, Math.min(zoom, 20.0));
+
+        generateMap();
+
+        return true;
+    }
+    @Override
+    public boolean mouseClicked(
+            double mouseX,
+            double mouseY,
+            int button
+    ) {
+
+        if (button == 0) {
+
+            dragging = true;
+
+            lastMouseX = mouseX;
+            lastMouseY = mouseY;
+
+            return true;
+        }
+
+
+
+        return super.mouseClicked(
+                mouseX,
+                mouseY,
+                button
+        );
+    }
+    @Override
+    public boolean mouseReleased(
+            double mouseX,
+            double mouseY,
+            int button
+    ) {
+
+        dragging = false;
+
+        return super.mouseReleased(
+                mouseX,
+                mouseY,
+                button
+        );
+    }
+    @Override
+    public boolean mouseDragged(
+            double mouseX,
+            double mouseY,
+            int button,
+            double deltaX,
+            double deltaY
+    ) {
+
+        if (dragging) {
+
+            double blocksPerScreenPixel =
+                    (MAP_RADIUS * 2.0)
+                            / mapWidth
+                            / zoom;
+
+            mapCenterX -=
+                    deltaX * blocksPerScreenPixel;
+
+            mapCenterZ -=
+                    deltaY * blocksPerScreenPixel;
+
+            generateMap();
+
+            return true;
+        }
+
+        return super.mouseDragged(
+                mouseX,
+                mouseY,
+                button,
+                deltaX,
+                deltaY
+        );
+    }
     @Override
     public boolean shouldPause() {
         return false;
